@@ -1,0 +1,186 @@
+﻿Build1=Default,b4a.example.order
+File1=main.bal
+File2=MainPage.bal
+FileGroup1=Default Group
+FileGroup2=Default Group
+Group=Default Group
+Library1=b4xpages
+Library2=core
+Library3=phone
+Library4=dialogs
+ManifestCode='This code will be applied to the manifest file during compilation.~\n~'You do not need to modify it in most cases.~\n~'See this link for for more information: https://www.b4x.com/forum/showthread.php?p=78136~\n~AddManifestText(~\n~<uses-sdk android:minSdkVersion="5" android:targetSdkVersion="31"/>~\n~<supports-screens android:largeScreens="true" ~\n~    android:normalScreens="true" ~\n~    android:smallScreens="true" ~\n~    android:anyDensity="true"/>)~\n~SetApplicationAttribute(android:icon, "@drawable/icon")~\n~SetApplicationAttribute(android:label, "$LABEL$")~\n~CreateResourceFromFile(Macro, Themes.LightTheme)~\n~'End of default text.~\n~
+Module1=|relative|..\B4XMainPage
+Module2=Starter
+NumberOfFiles=2
+NumberOfLibraries=4
+NumberOfModules=2
+Version=12.2
+@EndOfDesignText@
+#Region  Project Attributes
+    #ApplicationLabel: Narudžba Napitaka
+    #VersionCode: 1
+    #VersionName: 
+#End Region
+
+#Region  Activity Attributes
+    #FullScreen: False
+    #IncludeTitle: True
+#End Region
+
+Sub Process_Globals
+	' Globalne varijable koje su dostupne kroz cijeli projekt
+	Dim drinksList As List
+	Dim ordersMap As Map
+End Sub
+
+Sub Globals
+	' Lokalno definirane varijable koje se odnose na UI elemente
+	Dim Spinner1 As Spinner ' Spinner za dodavanje napitaka
+	Dim btnAddDrink As Button
+	Dim btnShowOrders As Button
+	Dim btnDeleteDrink As Button
+	Dim btnClearAll As Button
+	Dim ListView1 As ListView
+	Dim btnReduceDrink As Button ' Novi gumb za smanjenje količine
+	Dim pho As PhoneWakeState ' Varijabla za sprječavanje gašenja ekrana
+End Sub
+
+Sub Activity_Create(FirstTime As Boolean)
+	Activity.LoadLayout("Main") ' Učitava glavni layout
+    
+	' Sprječavanje gašenja ekrana
+	pho.KeepAlive(True)
+    
+	' Inicijalizacija liste napitaka
+	drinksList.Initialize
+	drinksList.AddAll(Array As String("Kava", "Kava s mlijekom", "Kapučino", "Čaj", "Piva", "Radler", "Sommersby", "Vino", "Voda", "Mineralna voda", "Sok negazirani", "Sok gazirani", "Gemišt", "Bambus", "Jeger", "Pelinkovac", "Višnjevac", "Orahovac", "Čokoladni liker", "Rakija", "Liker", "Gin Tonic", "Kruškovac", "Ostalo..."))
+    
+	Spinner1.AddAll(drinksList) ' Dodavanje napitaka u Spinner
+	ordersMap.Initialize ' Inicijalizacija mape narudžbi
+    
+	LoadOrders ' Učitavanje prethodnih narudžbi iz datoteke (ako postoje)
+
+	' ListView1.TwoLinesAndBitmap = False ' Postavi da koristi samo jednu liniju
+End Sub
+
+Sub Activity_Resume
+	' Sprječavanje gašenja ekrana pri povratku u aplikaciju
+	pho.KeepAlive(True)
+End Sub
+
+Sub Activity_Pause (UserClosed As Boolean)
+	' Isključiti sprječavanje gašenja ekrana ako je aplikacija zatvorena
+	pho.ReleaseKeepAlive
+End Sub
+
+Sub btnAddDrink_Click
+	' Dohvaćanje odabranog napitka iz Spinnera
+	Dim selectedDrink As String = Spinner1.SelectedItem
+    
+	If selectedDrink = "Ostalo..." Then
+		' Ako je odabrana opcija "Ostalo...", prikazuje se dijalog za unos napitka
+		Dim dlg As InputDialog
+		Dim res As Int = dlg.Show("Unesite naziv napitka:", "Novi Napitak", "OK", "Odustani", "", Null)
+		If res = DialogResponse.POSITIVE Then
+			selectedDrink = dlg.Input
+		Else
+			Return ' Ako je korisnik odustao, prekinuti rad
+		End If
+	End If
+    
+	' Provjera je li napitak već u narudžbi i povećanje količine
+	If ordersMap.ContainsKey(selectedDrink) Then
+		ordersMap.Put(selectedDrink, ordersMap.Get(selectedDrink) + 1)
+	Else
+		ordersMap.Put(selectedDrink, 1)
+	End If
+    
+	SaveOrders ' Spremanje narudžbi u datoteku
+	btnShowOrders_Click ' Osvježi prikaz narudžbi nakon dodavanja
+End Sub
+
+Sub btnShowOrders_Click
+	' Prikaz liste narudžbi u ListView
+	ListView1.Clear
+	For Each k As String In ordersMap.Keys
+		ListView1.AddSingleLine(k & ": " & NumberFormat(ordersMap.Get(k), 0, 0)) ' Prikazuje cijele brojeve
+	Next
+End Sub
+
+Sub btnDeleteDrink_Click
+	Dim selectedDrink As String = Spinner1.SelectedItem
+	If selectedDrink = "Ostalo..." Then
+		Dim dlg As InputDialog
+		Dim res As Int = dlg.Show("Unesite naziv napitka za brisanje:", "Brisanje Napitka", "OK", "Odustani", "", Null)
+		If res = DialogResponse.POSITIVE Then
+			selectedDrink = dlg.Input
+		Else
+			Return ' Ako je korisnik odustao, prekinuti rad
+		End If
+	End If
+    
+	If selectedDrink <> "" Then
+		If ordersMap.ContainsKey(selectedDrink) Then
+			If Msgbox2("Jeste li sigurni da želite obrisati " & selectedDrink & "?", "Potvrda", "Da", "Ne", "", Null) = DialogResponse.POSITIVE Then
+				ordersMap.Remove(selectedDrink)
+				SaveOrders ' Ponovno spremanje narudžbi nakon brisanja
+				btnShowOrders_Click ' Osvježi prikaz nakon brisanja
+			End If
+		Else
+			ToastMessageShow("Napitak ne postoji u narudžbi.", False)
+		End If
+	Else
+		ToastMessageShow("Nema odabranog napitka.", False)
+	End If
+End Sub
+
+Sub btnClearAll_Click
+	' Brisanje svih narudžbi
+	If Msgbox2("Jeste li sigurni da želite obrisati sve narudžbe?", "Potvrda", "Da", "Ne", "", Null) = DialogResponse.POSITIVE Then
+		ordersMap.Clear
+		SaveOrders
+		btnShowOrders_Click ' Osvježi prikaz nakon brisanja svih
+	End If
+End Sub
+
+Sub btnReduceDrink_Click
+	Dim selectedDrink As String = Spinner1.SelectedItem
+	If selectedDrink = "Ostalo..." Then
+		Dim dlg As InputDialog
+		Dim res As Int = dlg.Show("Unesite naziv napitka za smanjenje količine:", "Smanjenje Napitka", "OK", "Odustani", "", Null)
+		If res = DialogResponse.POSITIVE Then
+			selectedDrink = dlg.Input
+		Else
+			Return ' Ako je korisnik odustao, prekinuti rad
+		End If
+	End If
+    
+	If selectedDrink <> "" Then
+		If ordersMap.ContainsKey(selectedDrink) Then
+			Dim currentAmount As Int = ordersMap.Get(selectedDrink)
+			If currentAmount > 1 Then
+				ordersMap.Put(selectedDrink, currentAmount - 1) ' Smanji količinu za 1
+			Else
+				ordersMap.Remove(selectedDrink) ' Ako je količina 1, briše napitak
+			End If
+			SaveOrders ' Spremi promjene
+			btnShowOrders_Click ' Osvježi prikaz narudžbi nakon smanjenja
+		Else
+			ToastMessageShow("Napitak ne postoji u narudžbi.", False)
+		End If
+	Else
+		ToastMessageShow("Nema odabranog napitka.", False)
+	End If
+End Sub
+
+Sub SaveOrders
+	' Spremanje narudžbi u datoteku
+	File.WriteMap(File.DirInternal, "orders.txt", ordersMap)
+End Sub
+
+Sub LoadOrders
+	' Učitavanje narudžbi iz datoteke (ako postoji)
+	If File.Exists(File.DirInternal, "orders.txt") Then
+		ordersMap = File.ReadMap(File.DirInternal, "orders.txt")
+	End If
+End Sub
